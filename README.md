@@ -2,7 +2,7 @@
 
 ## Overview
 
-**Aesora** is a production-quality command-line file encryption tool built in C++ that provides military-grade file protection using authenticated encryption.
+**Aesora** is a command-line file encryption tool built in C++ that provides military-grade file protection using authenticated encryption.
 
 ### Key Features
 
