@@ -1,0 +1,46 @@
+# Build artifacts
+build/
+build_debug/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+*.a
+*.o
+*.so
+*.dylib
+*.dll
+*.exe
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+.clangd
+
+# Test artifacts
+test_file_*
+test_encrypted_*
+test_decrypted_*
+test_binary*
+*.aesora
+test_*.txt
+test_*.bin
+
+# Profiling
+gmon.out
+*.prof
+
+# Temporary files
+*.tmp
+*.bak
+
+# OS
+Thumbs.db
+.DS_Store
+
+# ccmake files
+.cmake/
