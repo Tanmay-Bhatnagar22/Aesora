@@ -33,6 +33,7 @@
 #include <string>
 #include <cstring>
 #include <stdexcept>
+#include <fstream>
 
 #ifdef _WIN32
     #include <windows.h>
@@ -41,6 +42,7 @@
     #include <unistd.h>
     #include <termios.h>
 #endif
+#include <file_utils.h>
 
 /**
  * Securely prompts user for password without echoing input.
@@ -97,91 +99,121 @@ std::string get_password_from_user(const std::string& prompt) {
 }
 
 /**
- * Prints usage information to the user.
+ * Prints welcome banner and menu information.
  */
-void print_usage() {
-    std::cout << "\n"
-              << "=== Aesora: Secure File Encryption Tool ===\n"
-              << "\n"
-              << "USAGE:\n"
-              << "------\n"
-              << "  aesora encrypt <input_file> <output_file>\n"
-              << "  aesora decrypt <input_file> <output_file>\n"
-              << "\n"
-              << "EXAMPLES:\n"
-              << "---------\n"
-              << "  Encrypt a file:\n"
-              << "    aesora encrypt document.pdf document.pdf.aesora\n"
-              << "\n"
-              << "  Decrypt a file:\n"
-              << "    aesora decrypt document.pdf.aesora document.pdf\n"
-              << "\n"
-              << "SECURITY:\n"
-              << "---------\n"
-              << "  - Password is prompted interactively (not via command line)\n"
-              << "  - Uses AES-256-GCM for authenticated encryption\n"
-              << "  - Uses PBKDF2-HMAC-SHA256 with 310,000 iterations for key derivation\n"
-              << "  - Random salt and IV for each encryption\n"
-              << "  - Authentication tag verifies file integrity\n"
-              << "\n";
+void print_banner() {
+    std::cout << "\n";
+    std::cout << "=============================================\n";
+    std::cout << "     Aesora: Secure File Encryption Tool\n";
+    std::cout << "=============================================\n\n";
+    std::cout << "\n";
+    std::cout << "SECURITY FEATURES:\n";
+    std::cout << "  [+] AES-256-GCM for authenticated encryption\n";
+    std::cout << "  [+] PBKDF2-HMAC-SHA256 with 310,000 iterations\n";
+    std::cout << "  [+] Random salt and IV for each encryption\n";
+    std::cout << "  [+] Authentication tag verifies file integrity\n";
+    std::cout << "  [+] Password prompted securely (not via command line)\n";
+    std::cout << "\n";
 }
 
-int main(int argc, char* argv[]) {
+/**
+ * Print success message.
+ */
+void print_success(const std::string& message) {
+    std::cout << "[+] " << message << "\n";
+}
+
+/**
+ * Print error message.
+ */
+void print_error(const std::string& message) {
+    std::cerr << "[-] " << message << "\n";
+}
+
+/**
+ * Print info message.
+ */
+void print_info(const std::string& message) {
+    std::cout << "[*] " << message << "\n";
+}
+
+int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
     try {
-        // Parse command line arguments
-        if (argc < 4) {
-            print_usage();
+        print_banner();
+        
+        // Ask user for operation type
+        std::string operation;
+        std::cout << "[*] Do you want to (E)ncrypt or (D)ecrypt? [E/D]: ";
+        std::getline(std::cin, operation);
+        
+        // Convert to uppercase for case-insensitive comparison
+        if (!operation.empty()) {
+            operation[0] = std::toupper(operation[0]);
+        }
+        
+        bool is_encrypt = (operation == "E");
+        bool is_decrypt = (operation == "D");
+        
+        if (!is_encrypt && !is_decrypt) {
+            print_error("Invalid option. Please enter 'E' or 'D'");
             return 1;
         }
         
-        std::string command = argv[1];
-        std::string input_file = argv[2];
-        std::string output_file = argv[3];
+        // Ask user for file path
+        std::string prompt = is_encrypt ? 
+            "[*] Enter the path to the file you want to encrypt:\n> " :
+            "[*] Enter the path to the file you want to decrypt:\n> ";
         
-        // Validate command
-        if (command != "encrypt" && command != "decrypt") {
-            std::cerr << "Error: Unknown command '" << command << "'\n";
-            std::cerr << "Valid commands: encrypt, decrypt\n\n";
-            print_usage();
+        std::string input_file;
+        std::cout << prompt;
+        std::getline(std::cin, input_file);
+        
+        // Trim whitespace
+        input_file.erase(0, input_file.find_first_not_of(" \t\n\r"));
+        input_file.erase(input_file.find_last_not_of(" \t\n\r") + 1);
+        
+        // Validate file exists
+        if (!file_exists(input_file)) {
+            print_error("File not found: '" + input_file + "'");
             return 1;
         }
+        
+        // Prepare output file path
+        std::string output_file;
+        if (is_encrypt) {
+            output_file = input_file + ".aesora";
+        } else {
+            // Remove .aesora extension if present, otherwise append .decrypted
+            if (input_file.length() > 7 && input_file.substr(input_file.length() - 7) == ".aesora") {
+                output_file = input_file.substr(0, input_file.length() - 7);
+            } else {
+                output_file = input_file + ".decrypted";
+            }
+        }
+        
+        print_info("File to " + std::string(is_encrypt ? "encrypt" : "decrypt") + ": " + input_file);
+        print_info("Output file:     " + output_file);
         
         // Prompt for password securely
-        // WHY INTERACTIVE:
-        // - Never visible in process list
-        // - Never stored in shell history
-        // - Securely cleared from memory after use
-        std::string password = get_password_from_user(
-            command == "encrypt" 
-                ? "Enter password for encryption: " 
-                : "Enter password for decryption: "
-        );
+        std::string password_prompt = is_encrypt ? 
+            "\n[*] Enter password for encryption: " :
+            "\n[*] Enter password for decryption: ";
         
-        // Perform requested operation
-        if (command == "encrypt") {
-            // ENCRYPTION FLOW:
-            // 1. Generate random salt (16 bytes)
-            // 2. Generate random IV (12 bytes)
-            // 3. Derive key from password using PBKDF2 (~300ms)
-            // 4. Encrypt with AES-256-GCM
-            // 5. Write Aesora file format
+        std::string password = get_password_from_user(password_prompt);
+        
+        if (is_encrypt) {
+            print_info("Encrypting file...");
             encrypt_file(input_file, output_file, password);
+            print_success("File encrypted successfully!");
         } else {
-            // DECRYPTION FLOW:
-            // 1. Read Aesora file
-            // 2. Extract salt and IV from file
-            // 3. Derive key from password using same salt/iterations
-            // 4. Decrypt with AES-256-GCM
-            // 5. Verify GCM authentication tag
-            // 6. Write plaintext
+            print_info("Decrypting file...");
             decrypt_file(input_file, output_file, password);
+            print_success("File decrypted successfully!");
         }
         
+        print_success("Output file saved to: " + output_file);
+        
         // Clear password from memory
-        // WHY IMPORTANT:
-        // - Password was used for key derivation
-        // - Should not remain in memory
-        // - Prevents recovery from RAM dumps
         for (size_t i = 0; i < password.size(); ++i) {
             password[i] = '\0';
         }
@@ -190,10 +222,10 @@ int main(int argc, char* argv[]) {
         return 0;
         
     } catch (const std::runtime_error& e) {
-        std::cerr << "ERROR: " << e.what() << "\n";
+        print_error(std::string(e.what()));
         return 1;
     } catch (const std::exception& e) {
-        std::cerr << "UNEXPECTED ERROR: " << e.what() << "\n";
+        print_error(std::string("UNEXPECTED: ") + e.what());
         return 1;
     }
 }

@@ -51,7 +51,7 @@ std::vector<unsigned char> read_file_binary(const std::string& path) {
 void write_file_binary(
     const std::string& path,
     const std::vector<unsigned char>& data,
-    int mode
+    [[maybe_unused]] int mode
 ) {
     // SECURITY: Open in binary mode to prevent text conversions
     // TRUNCATE: If file exists, we overwrite it completely
