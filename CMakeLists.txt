@@ -145,6 +145,7 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_aesora.cpp")
         )
         set_source_files_properties(Resources/icon.icns PROPERTIES MACOSX_PACKAGE_LOCATION Resources)
     endif()
+    
     if(BUILD_STATIC_EXECUTABLE AND NOT MSVC)
         target_link_libraries(test_aesora PRIVATE ${OPENSSL_CRYPTO_LIBRARY})
     else()
