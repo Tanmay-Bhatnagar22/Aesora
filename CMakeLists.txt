@@ -80,10 +80,37 @@ set(AESORA_HEADERS
 )
 
 # ============================================================================
+# RESOURCE FILES (CROSS-PLATFORM ICONS)
+# ============================================================================
+
+set(AESORA_RESOURCES)
+
+if(WIN32)
+    # Windows: Use .rc resource file
+    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/Resources/icon.rc")
+        set(AESORA_RESOURCES ${AESORA_RESOURCES} Resources/icon.rc)
+    endif()
+elseif(APPLE)
+    # macOS: Use .icns bundle icon
+    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/Resources/icon.icns")
+        set(AESORA_RESOURCES ${AESORA_RESOURCES} Resources/icon.icns)
+    endif()
+endif()
+
+# ============================================================================
 # BUILD EXECUTABLE
 # ============================================================================
 
-add_executable(aesora ${AESORA_MAIN} ${AESORA_CORE_SOURCES} ${AESORA_HEADERS})
+add_executable(aesora ${AESORA_MAIN} ${AESORA_CORE_SOURCES} ${AESORA_HEADERS} ${AESORA_RESOURCES})
+
+# macOS: Configure bundle icon
+if(APPLE AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/Resources/icon.icns")
+    set_target_properties(aesora PROPERTIES
+        MACOSX_BUNDLE TRUE
+        MACOSX_BUNDLE_ICON_FILE icon.icns
+    )
+    set_source_files_properties(Resources/icon.icns PROPERTIES MACOSX_PACKAGE_LOCATION Resources)
+endif()
 
 # Link OpenSSL libraries
 if(BUILD_STATIC_EXECUTABLE AND NOT MSVC)
@@ -108,7 +135,16 @@ enable_testing()
 
 # Add test executable (if tests/test_aesora.cpp exists)
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_aesora.cpp")
-    add_executable(test_aesora tests/test_aesora.cpp ${AESORA_CORE_SOURCES} ${AESORA_HEADERS})
+    add_executable(test_aesora tests/test_aesora.cpp ${AESORA_CORE_SOURCES} ${AESORA_HEADERS} ${AESORA_RESOURCES})
+    
+    # macOS: Configure bundle icon for test executable
+    if(APPLE AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/Resources/icon.icns")
+        set_target_properties(test_aesora PROPERTIES
+            MACOSX_BUNDLE TRUE
+            MACOSX_BUNDLE_ICON_FILE icon.icns
+        )
+        set_source_files_properties(Resources/icon.icns PROPERTIES MACOSX_PACKAGE_LOCATION Resources)
+    endif()
     if(BUILD_STATIC_EXECUTABLE AND NOT MSVC)
         target_link_libraries(test_aesora PRIVATE ${OPENSSL_CRYPTO_LIBRARY})
     else()
