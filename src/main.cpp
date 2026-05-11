@@ -1,6 +1,6 @@
 /**
  * @file main.cpp
- * @brief CLI interface for Aesora
+ * @brief CLI interface for Aesora - Secure File Encryption Tool
  * 
  * USAGE:
  * ======
@@ -23,11 +23,18 @@
  * - Uses getpass() on Unix, Windows API on Windows
  * - Disables echo so password is not visible while typing
  * - Clears password from memory after use
+ * 
+ * UI/UX:
+ * ======
+ * - Professional ANSI color styling
+ * - Windows ANSI compatibility for modern terminals
+ * - Cybersecurity-oriented visual design
  */
 
 #include "encrypt.h"
 #include "decrypt.h"
 #include "crypto_utils.h"
+#include "terminal_colors.h"
 
 #include <iostream>
 #include <string>
@@ -55,9 +62,7 @@
  * @return        User's password
  */
 std::string get_password_from_user(const std::string& prompt) {
-    std::cout << prompt;
-    std::cout.flush();
-    
+    print_prompt(prompt);
     std::string password;
     
     #ifdef _WIN32
@@ -99,51 +104,41 @@ std::string get_password_from_user(const std::string& prompt) {
 }
 
 /**
- * Prints welcome banner and menu information.
+ * Prints professional colored banner for Aesora.
+ * Features: Bold cyan header, security feature list, visual separators
  */
 void print_banner() {
     std::cout << "\n";
-    std::cout << "=============================================\n";
-    std::cout << "     Aesora: Secure File Encryption Tool\n";
-    std::cout << "=============================================\n\n";
+    print_banner_line("==================================================");
+    print_banner_line("     " COLOR_BOLD_CYAN "Aesora" COLOR_RESET " - Secure File Encryption      ");
+    print_banner_line("     Professional Cybersecurity Tool     ");
+    print_banner_line("==================================================");
+    
+    print_section_header("SECURITY FEATURES");
+    
+    print_feature(FEATURE_AES " for authenticated encryption");
+    print_feature(FEATURE_PBKDF2 " with 310,000 iterations");
+    print_feature(FEATURE_SALT " for each encryption");
+    print_feature(FEATURE_IV " (96-bit) for uniqueness");
+    print_feature(FEATURE_GCM_TAG " verifies file integrity");
+    print_feature("Password prompted securely (not via command line)");
+    
     std::cout << "\n";
-    std::cout << "SECURITY FEATURES:\n";
-    std::cout << "  [+] AES-256-GCM for authenticated encryption\n";
-    std::cout << "  [+] PBKDF2-HMAC-SHA256 with 310,000 iterations\n";
-    std::cout << "  [+] Random salt and IV for each encryption\n";
-    std::cout << "  [+] Authentication tag verifies file integrity\n";
-    std::cout << "  [+] Password prompted securely (not via command line)\n";
+    print_separator();
     std::cout << "\n";
-}
-
-/**
- * Print success message.
- */
-void print_success(const std::string& message) {
-    std::cout << "[+] " << message << "\n";
-}
-
-/**
- * Print error message.
- */
-void print_error(const std::string& message) {
-    std::cerr << "[-] " << message << "\n";
-}
-
-/**
- * Print info message.
- */
-void print_info(const std::string& message) {
-    std::cout << "[*] " << message << "\n";
 }
 
 int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
     try {
+        // Enable ANSI color support on Windows terminals
+        enable_ansi_support();
+        
         print_banner();
         
         // Ask user for operation type
+        print_prompt("Select operation: " COLOR_BOLD_GREEN "(E)" COLOR_RESET "ncrypt or " COLOR_BOLD_RED "(D)" COLOR_RESET "ecrypt? [E/D]: ");
+        
         std::string operation;
-        std::cout << "[*] Do you want to (E)ncrypt or (D)ecrypt? [E/D]: ";
         std::getline(std::cin, operation);
         
         // Convert to uppercase for case-insensitive comparison
@@ -159,13 +154,20 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
             return 1;
         }
         
+        // Print operation header
+        if (is_encrypt) {
+            print_section_header(COLOR_BOLD_GREEN "ENCRYPTION MODE" COLOR_RESET);
+        } else {
+            print_section_header(COLOR_BOLD_CYAN "DECRYPTION MODE" COLOR_RESET);
+        }
+        
         // Ask user for file path
-        std::string prompt = is_encrypt ? 
-            "[*] Enter the path to the file you want to encrypt:\n> " :
-            "[*] Enter the path to the file you want to decrypt:\n> ";
+        std::string file_prompt = is_encrypt ? 
+            "\nEnter path to file to encrypt:\n" COLOR_BRIGHT_CYAN "> " COLOR_RESET :
+            "\nEnter path to file to decrypt:\n" COLOR_BRIGHT_CYAN "> " COLOR_RESET;
         
         std::string input_file;
-        std::cout << prompt;
+        std::cout << file_prompt;
         std::getline(std::cin, input_file);
         
         // Trim whitespace
@@ -191,27 +193,38 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
             }
         }
         
-        print_info("File to " + std::string(is_encrypt ? "encrypt" : "decrypt") + ": " + input_file);
-        print_info("Output file:     " + output_file);
+        std::cout << "\n";
+        print_section_header("FILE INFORMATION");
+        print_labeled_value("Input file", emphasis(input_file));
+        print_labeled_value("Output file", emphasis(output_file));
         
         // Prompt for password securely
         std::string password_prompt = is_encrypt ? 
-            "\n[*] Enter password for encryption: " :
-            "\n[*] Enter password for decryption: ";
+            "\nEnter encryption password" COLOR_MAGENTA " (input hidden)" COLOR_RESET ": " :
+            "\nEnter decryption password" COLOR_MAGENTA " (input hidden)" COLOR_RESET ": ";
         
         std::string password = get_password_from_user(password_prompt);
         
+        std::cout << "\n";
+        
         if (is_encrypt) {
-            print_info("Encrypting file...");
+            print_progress("Encrypting file with AES-256-GCM...");
             encrypt_file(input_file, output_file, password);
-            print_success("File encrypted successfully!");
+            std::cout << "\n";
+            print_success("Encryption completed successfully!");
+            print_labeled_value("Output", emphasis(output_file));
+            print_feature("File is now encrypted and authenticated");
         } else {
-            print_info("Decrypting file...");
+            print_progress("Decrypting file...");
             decrypt_file(input_file, output_file, password);
-            print_success("File decrypted successfully!");
+            std::cout << "\n";
+            print_success("Decryption completed successfully!");
+            print_labeled_value("Output", emphasis(output_file));
+            print_feature("File integrity verified with GCM tag");
         }
         
-        print_success("Output file saved to: " + output_file);
+        print_labeled_value("Status", success_emphasis("COMPLETE"));
+        std::cout << "\n";
         
         // Clear password from memory
         for (size_t i = 0; i < password.size(); ++i) {
@@ -222,10 +235,14 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
         return 0;
         
     } catch (const std::runtime_error& e) {
+        std::cout << "\n";
         print_error(std::string(e.what()));
+        print_warning("Operation failed - please check your input and try again");
         return 1;
     } catch (const std::exception& e) {
-        print_error(std::string("UNEXPECTED: ") + e.what());
+        std::cout << "\n";
+        print_error(std::string("UNEXPECTED ERROR: ") + e.what());
+        print_warning("An unexpected error occurred");
         return 1;
     }
 }
