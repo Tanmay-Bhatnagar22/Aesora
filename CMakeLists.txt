@@ -9,6 +9,22 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -O2")
 
+# Option to enable static linking for portability
+option(BUILD_STATIC_EXECUTABLE "Build a fully static executable for portability" OFF)
+
+if(BUILD_STATIC_EXECUTABLE)
+    # Static linking flags
+    if(MSVC)
+        # For MSVC: link against static runtime
+        string(REPLACE "/MD" "/MT" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+        string(REPLACE "/MDd" "/MTd" CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}")
+    else()
+        # For GCC/Clang: enable static linking
+        set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static -static-libgcc -static-libstdc++")
+    endif()
+    message(STATUS "Building static executable for portability")
+endif()
+
 # ============================================================================
 # FIND OPENSSL (REQUIRED FOR CRYPTOGRAPHY)
 # ============================================================================
@@ -70,7 +86,13 @@ set(AESORA_HEADERS
 add_executable(aesora ${AESORA_MAIN} ${AESORA_CORE_SOURCES} ${AESORA_HEADERS})
 
 # Link OpenSSL libraries
-target_link_libraries(aesora PRIVATE OpenSSL::Crypto)
+if(BUILD_STATIC_EXECUTABLE AND NOT MSVC)
+    # For static linking on Linux/macOS: use static libraries
+    target_link_libraries(aesora PRIVATE ${OPENSSL_CRYPTO_LIBRARY})
+else()
+    # Default: dynamic linking
+    target_link_libraries(aesora PRIVATE OpenSSL::Crypto)
+endif()
 
 # ============================================================================
 # INSTALLATION
@@ -87,7 +109,11 @@ enable_testing()
 # Add test executable (if tests/test_aesora.cpp exists)
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_aesora.cpp")
     add_executable(test_aesora tests/test_aesora.cpp ${AESORA_CORE_SOURCES} ${AESORA_HEADERS})
-    target_link_libraries(test_aesora PRIVATE OpenSSL::Crypto)
+    if(BUILD_STATIC_EXECUTABLE AND NOT MSVC)
+        target_link_libraries(test_aesora PRIVATE ${OPENSSL_CRYPTO_LIBRARY})
+    else()
+        target_link_libraries(test_aesora PRIVATE OpenSSL::Crypto)
+    endif()
     add_test(NAME AesoraTests COMMAND test_aesora)
 endif()
 
