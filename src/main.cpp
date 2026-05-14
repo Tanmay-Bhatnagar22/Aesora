@@ -128,13 +128,38 @@ void print_banner() {
     std::cout << "\n";
 }
 
-int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
+/**
+ * Displays post-operation menu and returns user's choice
+ * @return 'c' to continue with another operation, 'e' to exit
+ */
+char get_post_operation_choice() {
+    std::cout << "\n";
+    print_separator();
+    print_prompt("\nWhat would you like to do next?");
+    std::cout << COLOR_BOLD_GREEN "  (C)" COLOR_RESET "ontinue - Encrypt/Decrypt another file\n";
+    std::cout << COLOR_BOLD_RED "  (E)" COLOR_RESET "xit - Close the program\n\n";
+    print_prompt("Choose an option [C/E]: ");
+    
+    std::string choice;
+    std::getline(std::cin, choice);
+    
+    if (!choice.empty()) {
+        choice[0] = std::toupper(choice[0]);
+        if (choice[0] == 'C' || choice[0] == 'E') {
+            return choice[0];
+        }
+    }
+    
+    print_warning("Invalid choice. Defaulting to continue...");
+    return 'C';
+}
+
+/**
+ * Performs file encryption or decryption operation
+ * @return true if operation was successful, false otherwise
+ */
+bool perform_crypto_operation() {
     try {
-        // Enable ANSI color support on Windows terminals
-        enable_ansi_support();
-        
-        print_banner();
-        
         // Ask user for operation type
         print_prompt("Select operation: " COLOR_BOLD_GREEN "(E)" COLOR_RESET "ncrypt or " COLOR_BOLD_RED "(D)" COLOR_RESET "ecrypt? [E/D]: ");
         
@@ -142,16 +167,19 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
         std::getline(std::cin, operation);
         
         // Convert to uppercase for case-insensitive comparison
-        if (!operation.empty()) {
-            operation[0] = std::toupper(operation[0]);
+        if (operation.empty()) {
+            print_error("No input provided");
+            return false;
         }
+        
+        operation[0] = std::toupper(operation[0]);
         
         bool is_encrypt = (operation == "E");
         bool is_decrypt = (operation == "D");
         
         if (!is_encrypt && !is_decrypt) {
             print_error("Invalid option. Please enter 'E' or 'D'");
-            return 1;
+            return false;
         }
         
         // Print operation header
@@ -161,23 +189,35 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
             print_section_header(COLOR_BOLD_CYAN "DECRYPTION MODE" COLOR_RESET);
         }
         
-        // Ask user for file path
-        std::string file_prompt = is_encrypt ? 
-            "\nEnter path to file to encrypt:\n" COLOR_BRIGHT_CYAN "> " COLOR_RESET :
-            "\nEnter path to file to decrypt:\n" COLOR_BRIGHT_CYAN "> " COLOR_RESET;
-        
+        // Ask user for file path with validation
         std::string input_file;
-        std::cout << file_prompt;
-        std::getline(std::cin, input_file);
+        bool valid_input = false;
         
-        // Trim whitespace
-        input_file.erase(0, input_file.find_first_not_of(" \t\n\r"));
-        input_file.erase(input_file.find_last_not_of(" \t\n\r") + 1);
-        
-        // Validate file exists
-        if (!file_exists(input_file)) {
-            print_error("File not found: '" + input_file + "'");
-            return 1;
+        while (!valid_input) {
+            std::string file_prompt = is_encrypt ? 
+                "\nEnter path to file to encrypt:\n" COLOR_BRIGHT_CYAN "> " COLOR_RESET :
+                "\nEnter path to file to decrypt:\n" COLOR_BRIGHT_CYAN "> " COLOR_RESET;
+            
+            std::cout << file_prompt;
+            std::getline(std::cin, input_file);
+            
+            // Trim whitespace
+            input_file.erase(0, input_file.find_first_not_of(" \t\n\r"));
+            input_file.erase(input_file.find_last_not_of(" \t\n\r") + 1);
+            
+            if (input_file.empty()) {
+                print_error("File path cannot be empty");
+                continue;
+            }
+            
+            // Validate file exists
+            if (!file_exists(input_file)) {
+                print_error("File not found: '" + input_file + "'");
+                print_warning("Please verify the path and try again");
+                continue;
+            }
+            
+            valid_input = true;
         }
         
         // Prepare output file path
@@ -193,6 +233,18 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
             }
         }
         
+        // Check if output file already exists
+        if (file_exists(output_file)) {
+            print_warning("Output file already exists: " + output_file);
+            print_prompt("Overwrite? [Y/N]: ");
+            std::string overwrite;
+            std::getline(std::cin, overwrite);
+            if (!overwrite.empty() && std::toupper(overwrite[0]) != 'Y') {
+                print_warning("Operation cancelled by user");
+                return false;
+            }
+        }
+        
         std::cout << "\n";
         print_section_header("FILE INFORMATION");
         print_labeled_value("Input file", emphasis(input_file));
@@ -204,6 +256,11 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
             "\nEnter decryption password" COLOR_MAGENTA " (input hidden)" COLOR_RESET ": ";
         
         std::string password = get_password_from_user(password_prompt);
+        
+        if (password.empty()) {
+            print_error("Password cannot be empty");
+            return false;
+        }
         
         std::cout << "\n";
         
@@ -224,7 +281,6 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
         }
         
         print_labeled_value("Status", success_emphasis("COMPLETE"));
-        std::cout << "\n";
         
         // Clear password from memory
         for (size_t i = 0; i < password.size(); ++i) {
@@ -232,17 +288,67 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
         }
         password.clear();
         
-        return 0;
+        return true;
         
     } catch (const std::runtime_error& e) {
         std::cout << "\n";
         print_error(std::string(e.what()));
         print_warning("Operation failed - please check your input and try again");
-        return 1;
+        return false;
     } catch (const std::exception& e) {
         std::cout << "\n";
         print_error(std::string("UNEXPECTED ERROR: ") + e.what());
         print_warning("An unexpected error occurred");
+        return false;
+    }
+}
+
+int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
+    try {
+        // Enable ANSI color support on Windows terminals
+        enable_ansi_support();
+        
+        print_banner();
+        
+        // Main application loop - continues until user chooses to exit
+        bool continue_running = true;
+        
+        while (continue_running) {
+            // Perform encryption or decryption operation
+            bool operation_success = perform_crypto_operation();
+            
+            if (operation_success) {
+                // Ask user if they want to continue
+                char choice = get_post_operation_choice();
+                
+                if (choice == 'E') {
+                    continue_running = false;
+                    std::cout << "\n";
+                    print_success("Thank you for using Aesora!");
+                    print_feature("All sensitive data has been cleared from memory");
+                    std::cout << "\n";
+                }
+            } else {
+                // Operation failed - ask if user wants to retry
+                print_prompt("\nTry another operation? [Y/N]: ");
+                std::string retry;
+                std::getline(std::cin, retry);
+                
+                if (retry.empty() || std::toupper(retry[0]) != 'Y') {
+                    continue_running = false;
+                    std::cout << "\n";
+                    print_warning("Application closed");
+                    std::cout << "\n";
+                }
+            }
+        }
+        
+        return 0;
+        
+    } catch (const std::exception& e) {
+        std::cout << "\n";
+        print_error(std::string("CRITICAL ERROR: ") + e.what());
+        print_warning("The application encountered an unexpected error and must close");
         return 1;
     }
 }
