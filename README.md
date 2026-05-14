@@ -320,7 +320,7 @@ tar czf - sensitive_folder | ./aesora encrypt /dev/stdin sensitive_folder.tar.gz
 <!-- Screenshot placeholder: Show terminal with encryption command and success message -->
 
 
-![Encryption](screenshots/Encryption.png)
+![Encryption](screenshots/Encryption.gif)
 
 
 ### Decryption Verification
@@ -328,7 +328,7 @@ tar czf - sensitive_folder | ./aesora encrypt /dev/stdin sensitive_folder.tar.gz
 <!-- Screenshot placeholder: Show terminal with decryption command and file integrity confirmation -->
 
 
-![Decryption](screenshots/Decryption.png)
+![Decryption](screenshots/Encryption.gif)
 
 ### File Comparison (Before & After)
 
