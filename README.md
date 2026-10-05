@@ -35,7 +35,7 @@
 
 ## Overview
 
-**Aesora** is a production-grade command-line file encryption tool built in modern C++17 that delivers military-grade protection for sensitive files. Using NIST-approved cryptographic algorithms, Aesora provides authenticated encryption that ensures both **confidentiality** and **integrity** of your data.
+**Aesora** is a command-line file encryption tool built in modern C++17 that delivers protection for sensitive files. Using NIST-approved cryptographic algorithms, Aesora provides authenticated encryption that ensures both **confidentiality** and **integrity** of your data.
 
 Whether you're protecting sensitive documents, archiving confidential information, or securing file transfers, Aesora combines ease of use with enterprise-level security standards.
 
